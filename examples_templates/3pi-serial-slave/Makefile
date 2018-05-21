@@ -1,10 +1,10 @@
-DEVICE ?= atmega168
-MCU ?= atmega168
-AVRDUDE_DEVICE ?= m168
+DEVICE ?= atmega328p
+MCU ?= atmega328
+AVRDUDE_DEVICE ?= m328p
 
 CFLAGS=-g -Wall -mcall-prologues -mmcu=$(MCU) $(DEVICE_SPECIFIC_CFLAGS) -Os
 CC=avr-gcc
-OBJ2HEX=avr-objcopy 
+OBJ2HEX=avr-objcopy
 LDFLAGS=-Wl,-gc-sections -lpololu_$(DEVICE) -Wl,-relax
 
 PORT ?= /dev/ttyACM0
