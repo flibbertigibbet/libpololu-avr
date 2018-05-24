@@ -4,6 +4,8 @@
  */
 #include <pololu/3pi.h>
 #include <ctype.h>
+#include<stdio.h>
+
 // including ctype for `isdigit`
 
 /*
@@ -91,29 +93,10 @@ void m2_backward() {
 }
 
 int drive_command_offset = -1;
+int forwards = 1;
 char drive_command_buffer[2];
 // process_received_byte: Responds to a byte that has been received on PD0/RXD.
-void process_received_byte(char byte) {
-    if (drive_command_offset != -1) {
-        if (drive_command_offset > 1) {
-            // index unexpectedly high
-            print("error");
-            drive_command_offset = -1;
-        }
-        if (isdigit(byte)) {
-            drive_command_buffer[drive_command_offset] = (int) byte;
-            if (drive_command_offset == 1) {
-                // execute command and reset reading
-                set_motors(drive_command_buffer[0], drive_command_buffer[1]);
-                drive_command_offset = -1;
-            } else {
-                drive_command_offset += 1;
-            }
-        } else {
-            print("bad speed");
-            drive_command_offset = -1;
-        }
-    }
+void process_received_char(char byte) {
     switch (byte) {
         // If the character 'c' is received, play the note c.
         case 'c':
@@ -139,8 +122,17 @@ void process_received_byte(char byte) {
             // stop driving
             set_motors(0, 0);
             break;
+        case 'u':
+            clear();
+            print("back");
+            forwards = 0;
+            drive_command_offset = 0;
+            break;
         case 'v':
             // flag to read the next two bytes as wheel speeds to set
+            clear();
+            print("drive");
+            forwards = 1;
             drive_command_offset = 0;
             break;
         case 'w':
@@ -166,10 +158,49 @@ void process_received_byte(char byte) {
     }
 }
 
+void process_received_int(int byte) {
+    if (drive_command_offset > 1) {
+        // index unexpectedly high
+        clear();
+        print("error");
+        drive_command_offset = -1;
+    }
+    drive_command_buffer[drive_command_offset] = byte;
+    if (drive_command_offset == 1) {
+        // execute command and reset reading
+        clear();
+        print("go");
+        print(" ");
+        char s1[4];
+        char s2[4];
+        sprintf(s1, "%d", drive_command_buffer[0]);
+        sprintf(s2, "%d", drive_command_buffer[1]);
+        print(s1);
+        print(" ");
+        print(s2);
+        if (forwards == 1) {
+            set_motors(drive_command_buffer[0], drive_command_buffer[1]);
+        } else {
+            // drive backwards
+            set_motors(-drive_command_buffer[0], -drive_command_buffer[1]);
+        }
+        drive_command_offset = -1;
+    } else {
+        print(" 1");
+        drive_command_offset += 1;
+    }
+    return;
+}
+
 void check_for_new_bytes_received() {
     while (serial_get_received_bytes() != receive_buffer_position) {
         // Process the new byte that has just been received.
-        process_received_byte(receive_buffer[receive_buffer_position]);
+
+        if (drive_command_offset != -1) {
+            process_received_int(receive_buffer[receive_buffer_position]);
+        } else {
+            process_received_char(receive_buffer[receive_buffer_position]);
+        }
 
         // Increment receive_buffer_position, but wrap around when it gets to
         // the end of the buffer.
